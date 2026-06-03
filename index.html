@@ -47,7 +47,13 @@ document.write('<link rel="manifest" href="' + manifestURL + '">');
     overscroll-behavior: none;
   }
   #app { height: 100%; display: flex; flex-direction: column; }
-  .screen { display: none; flex: 1; overflow-y: auto; padding: 1.5rem 1.25rem; padding-bottom: calc(5rem + var(--safe-bottom)); }
+  .screen {
+  display: none;
+  flex: 1;
+  overflow-y: auto;
+  padding: calc(1.5rem + env(safe-area-inset-top)) 1.25rem;
+  padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+}
   .screen.active { display: block; }
 
   /* NAV */
