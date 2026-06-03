@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Workout">
+<meta name="theme-color" content="#0e0f11">
+<title>Workout Tracker</title>
+
+<!-- PWA Manifest inline -->
+<script>
+const manifestData = {
+  name: "Workout Tracker",
+  short_name: "Workout",
+  start_url: ".",
+  display: "standalone",
+  background_color: "#0e0f11",
+  theme_color: "#0e0f11",
+  icons: [{
+    src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='100' fill='%230e0f11'/><text x='256' y='340' font-size='280' text-anchor='middle' fill='%23e8ff47'>⚡</text></svg>",
+    sizes: "512x512", type: "image/svg+xml"
+  }]
+};
+const blob = new Blob([JSON.stringify(manifestData)], {type: 'application/json'});
+const manifestURL = URL.createObjectURL(blob);
+document.write('<link rel="manifest" href="' + manifestURL + '">');
+</script>
+
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg: #0e0f11; --surface: #16181c; --surface2: #1e2127;
+    --border: #2a2d35; --accent: #e8ff47; --accent2: #47c8ff;
+    --text: #e8eaf0; --muted: #7a7f8e;
+    --push: #ff6b47; --pull: #47c8ff; --legs: #b47aff; --run: #e8ff47;
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg); color: var(--text);
+    font-size: 15px; line-height: 1.6;
+    overscroll-behavior: none;
+  }
+  #app { height: 100%; display: flex; flex-direction: column; }
+  .screen { display: none; flex: 1; overflow-y: auto; padding: 1.5rem 1.25rem; padding-bottom: calc(5rem + var(--safe-bottom)); }
+  .screen.active { display: block; }
+
+  /* NAV */
+  nav {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--surface); border-top: 1px solid var(--border);
+    display: flex; z-index: 100;
+    padding-bottom: var(--safe-bottom);
+  }
+  nav button {
+    flex: 1; background: none; border: none; color: var(--muted);
+    padding: 10px 0 8px; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    transition: color 0.15s;
+  }
+  nav button.active { color: var(--accent); }
+  nav button .nav-icon { font-size: 18px; }
+  nav button .nav-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; }
+
+  /* TYPOGRAPHY */
+  .bebas { font-family: 'Bebas Neue', sans-serif; letter-spacing: 0.05em; }
+  .mono { font-family: 'DM Mono', monospace; }
+  .tag { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 8px; border-radius: 4px; display: inline-block; }
+  .tag-push { background: rgba(255,107,71,0.2); color: var(--push); }
+  .tag-pull { background: rgba(71,200,255,0.2); color: var(--pull); }
+  .tag-legs { background: rgba(180,122,255,0.2); color: var(--legs); }
+  .tag-run  { background: rgba(232,255,71,0.15); color: var(--run); }
+
+  /* CARDS */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.1rem 1.25rem; margin-bottom: 0.85rem; }
+  .card-accent-push { border-left: 3px solid var(--push); }
+  .card-accent-pull { border-left: 3px solid var(--pull); }
+  .card-accent-legs { border-left: 3px solid var(--legs); }
+  .card-accent-run  { border-left: 3px solid var(--run); }
+
+  /* BUTTONS */
+  .btn-primary {
+    width: 100%; background: var(--accent); color: var(--bg);
+    border: none; border-radius: 10px; padding: 14px;
+    font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer;
+  }
+  .btn-secondary {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 14px;
+    font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted);
+    cursor: pointer; text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  .btn-ghost { background: none; border: none; color: var(--muted); cursor: pointer; font-family: 'DM Mono', monospace; font-size: 12px; padding: 0; }
+
+  /* INPUTS */
+  input, textarea {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 14px; color: var(--text);
+    font-family: 'DM Mono', monospace; font-size: 14px; outline: none;
+    -webkit-appearance: none;
+  }
+  textarea { resize: none; font-family: 'DM Sans', sans-serif; font-size: 14px; }
+  input:focus, textarea:focus { border-color: var(--accent); }
+
+  /* LABEL */
+  .field-label { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+
+  /* PROGRESS BAR */
+  .progress-track { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; margin-bottom: 4px; }
+  .progress-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.4s ease; }
+
+  /* SET GRID */
+  .set-grid { display: grid; grid-template-columns: 24px 1fr 1fr 34px; gap: 6px; align-items: center; margin-bottom: 6px; }
+  .set-input { padding: 7px 8px; font-size: 13px; }
+  .check-btn {
+    width: 34px; height: 34px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--muted); cursor: pointer;
+    font-size: 14px; display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+  }
+  .check-btn.done { background: var(--push); border-color: var(--push); color: var(--bg); }
+  .check-btn.done-pull { background: var(--pull); border-color: var(--pull); color: var(--bg); }
+  .check-btn.done-legs { background: var(--legs); border-color: var(--legs); color: var(--bg); }
+
+  /* HISTORY ITEM */
+  .hist-row { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; border-bottom: 1px solid var(--border); }
+
+  /* STREAK */
+  .streak-num { font-family: 'Bebas Neue', sans-serif; font-size: 2.5rem; color: var(--accent); line-height: 1; }
+
+  /* HEADER */
+  .page-header { margin-bottom: 1.5rem; }
+  .page-eyebrow { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--accent); letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 4px; }
+  .page-title { font-family: 'Bebas Neue', sans-serif; font-size: 3rem; line-height: 0.95; }
+  .page-title span { color: var(--accent); }
+
+  /* RUN TYPE PILLS */
+  .pill-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .pill { border-radius: 6px; padding: 7px 14px; font-family: 'DM Mono', monospace; font-size: 11px; cursor: pointer; font-weight: 600; border: 1px solid var(--border); background: var(--surface); color: var(--muted); transition: all 0.15s; }
+  .pill.active { background: var(--run); color: var(--bg); border-color: var(--run); }
+
+  /* WORKOUT TYPE BUTTONS */
+  .type-btn {
+    width: 100%; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 1.1rem 1.25rem; margin-bottom: 0.75rem;
+    cursor: pointer; text-align: left; display: flex; align-items: center; gap: 1rem;
+    transition: border-color 0.15s;
+  }
+
+  /* STAT GRID */
+  .stat-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 1.25rem; }
+  .stat-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem; text-align: center; }
+  .stat-val { font-family: 'Bebas Neue', sans-serif; font-size: 1.8rem; color: var(--accent); line-height: 1; }
+  .stat-lbl { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+
+  /* INSTALL BANNER */
+  #install-banner {
+    display: none; position: fixed; top: 0; left: 0; right: 0;
+    background: var(--accent); color: var(--bg); padding: 12px 16px;
+    font-family: 'DM Mono', monospace; font-size: 12px; z-index: 200;
+    align-items: center; gap: 10px;
+  }
+  #install-banner button { background: var(--bg); color: var(--accent); border: none; border-radius: 4px; padding: 4px 10px; font-family: 'DM Mono', monospace; font-size: 11px; cursor: pointer; font-weight: 700; }
+  #install-banner .close-banner { background: none; color: var(--bg); font-size: 16px; margin-left: auto; }
+</style>
+</head>
+<body>
+
+<!-- iOS install banner -->
+<div id="install-banner">
+  <span>⚡ Add to Home Screen for app experience</span>
+  <button onclick="document.getElementById('install-banner').style.display='none'">How?</button>
+  <button class="close-banner" onclick="document.getElementById('install-banner').style.display='none'">✕</button>
+</div>
+
+<div id="app">
+
+  <!-- HOME SCREEN -->
+  <div id="screen-home" class="screen active">
+    <div class="page-header">
+      <div class="page-eyebrow" id="home-date"></div>
+      <div class="page-title">WORKOUT<br><span>TRACKER</span></div>
+    </div>
+
+    <!-- Streak -->
+    <div class="card" style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;">
+      <div class="streak-num" id="streak-num">0</div>
+      <div>
+        <div style="font-weight:600;font-size:14px;">Day Streak</div>
+        <div id="streak-msg" style="color:var(--muted);font-size:12px;">Log today's workout to start</div>
+      </div>
+    </div>
+
+    <!-- Today's suggestion -->
+    <div id="today-suggestion"></div>
+
+    <!-- Recent -->
+    <div class="bebas" style="font-size:1.3rem;color:var(--muted);margin:1.25rem 0 0.75rem;">Recent Logs</div>
+    <div id="recent-logs"></div>
+  </div>
+
+  <!-- LOG SELECT SCREEN -->
+  <div id="screen-log-select" class="screen">
+    <div class="page-header">
+      <div class="page-title">LOG A<br><span>WORKOUT</span></div>
+    </div>
+    <div id="type-buttons"></div>
+  </div>
+
+  <!-- ACTIVE LOG SCREEN -->
+  <div id="screen-log" class="screen">
+    <button class="btn-ghost" onclick="showScreen('log-select')" style="margin-bottom:1rem;">← Back</button>
+    <div id="log-header" style="border-left:3px solid var(--accent);padding-left:1rem;margin-bottom:1.5rem;"></div>
+    <div id="log-body"></div>
+  </div>
+
+  <!-- HISTORY SCREEN -->
+  <div id="screen-history" class="screen">
+    <div class="page-header">
+      <div class="page-title">WORKOUT<br><span>HISTORY</span></div>
+    </div>
+    <div id="history-stats" class="stat-grid" style="display:none;"></div>
+    <div id="history-list"></div>
+  </div>
+
+  <!-- GOALS SCREEN -->
+  <div id="screen-milestones" class="screen">
+    <div class="page-header">
+      <div class="page-title">STRENGTH<br><span>GOALS</span></div>
+    </div>
+    <div id="goals-list"></div>
+  </div>
+
+  <nav>
+    <button onclick="showScreen('home')" id="nav-home" class="active">
+      <span class="nav-icon">⌂</span><span class="nav-label">Today</span>
+    </button>
+    <button onclick="showScreen('log-select')" id="nav-log-select">
+      <span class="nav-icon" style="font-size:22px;">+</span><span class="nav-label">Log</span>
+    </button>
+    <button onclick="showScreen('history')" id="nav-history">
+      <span class="nav-icon">◷</span><span class="nav-label">History</span>
+    </button>
+    <button onclick="showScreen('milestones')" id="nav-milestones">
+      <span class="nav-icon">◎</span><span class="nav-label">Goals</span>
+    </button>
+  </nav>
+</div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────
+const WORKOUTS = {
+  push: {
+    label: "Push", color: "#ff6b47", day: "Monday",
+    exercises: [
+      { name: "Barbell Bench Press",       sets: 4, target: "6–8",     goal: "bench" },
+      { name: "Incline Dumbbell Press",    sets: 3, target: "10" },
+      { name: "Overhead Press",            sets: 3, target: "8–10" },
+      { name: "Cable Lateral Raise",       sets: 3, target: "12–15" },
+      { name: "Tricep Rope Pushdown",      sets: 3, target: "12" },
+      { name: "Close-Grip Push-ups",       sets: 2, target: "max" },
+    ]
+  },
+  pull: {
+    label: "Pull", color: "#47c8ff", day: "Wednesday",
+    exercises: [
+      { name: "Pull-up / Assisted",        sets: 5, target: "2–3",     goal: "pullup" },
+      { name: "Lat Pulldown",              sets: 4, target: "10–12" },
+      { name: "Barbell / Cable Row",       sets: 3, target: "8–10" },
+      { name: "Face Pulls",                sets: 3, target: "15" },
+      { name: "Bicep Curl",               sets: 3, target: "10–12" },
+      { name: "Dead Hang",                 sets: 3, target: "30 sec" },
+    ]
+  },
+  legs: {
+    label: "Legs", color: "#b47aff", day: "Friday",
+    exercises: [
+      { name: "Barbell Squat (elevated)",  sets: 4, target: "6–8" },
+      { name: "Hack Squat Machine",        sets: 3, target: "10–12" },
+      { name: "Goblet Squat (flat)",       sets: 3, target: "10",      goal: "pistol" },
+      { name: "Bulgarian Split Squat",     sets: 3, target: "8 each",  goal: "pistol" },
+      { name: "Romanian Deadlift",         sets: 3, target: "10" },
+      { name: "Assisted Pistol Squat",     sets: 3, target: "4–5 each",goal: "pistol" },
+      { name: "Single-Leg Calf Raise",     sets: 3, target: "15 each" },
+    ]
+  },
+  run: { label: "Run", color: "#e8ff47" }
+};
+
+const GOAL_TAGS = {
+  bench:  { label: "BENCH",  bg: "rgba(255,107,71,0.2)",  color: "#ff6b47" },
+  pullup: { label: "PULL-UP",bg: "rgba(71,200,255,0.2)",  color: "#47c8ff" },
+  pistol: { label: "PISTOL", bg: "rgba(180,122,255,0.2)", color: "#b47aff" },
+};
+
+const MILESTONES_DEF = [
+  { key: "bench",   label: "Bench Press",  unit: "lbs",    icon: "🏋️", start: 135,   target: 225,  inverse: false },
+  { key: "pullups", label: "Pull-ups",     unit: "reps",   icon: "💪", start: 1,     target: 10,   inverse: false },
+  { key: "weight",  label: "Body Weight",  unit: "lbs",    icon: "⚖️", start: 240,   target: 200,  inverse: true },
+  { key: "pace",    label: "Mile Pace",    unit: "min/mi", icon: "🏃", start: 10.55, target: 10.0, inverse: true,
+    display: v => `${Math.floor(v)}:${String(Math.round((v%1)*60)).padStart(2,"0")}` },
+];
+
+// ── STORAGE ───────────────────────────────────────────────────────
+function getLogs() { try { return JSON.parse(localStorage.getItem("wt:logs") || "[]"); } catch { return []; } }
+function saveLogs(l) { localStorage.setItem("wt:logs", JSON.stringify(l)); }
+function getMilestones() { try { return JSON.parse(localStorage.getItem("wt:miles") || "null") || { bench:135, pullups:1, weight:240, pace:10.55 }; } catch { return { bench:135, pullups:1, weight:240, pace:10.55 }; } }
+function saveMilestonesData(m) { localStorage.setItem("wt:miles", JSON.stringify(m)); }
+
+// ── STATE ─────────────────────────────────────────────────────────
+let currentScreen = "home";
+let currentLog = null;
+
+// ── NAVIGATION ────────────────────────────────────────────────────
+function showScreen(name) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  document.querySelectorAll("nav button").forEach(b => b.classList.remove("active"));
+  document.getElementById("screen-" + name).classList.add("active");
+  const navBtn = document.getElementById("nav-" + name);
+  if (navBtn) navBtn.classList.add("active");
+  currentScreen = name;
+  if (name === "home") renderHome();
+  if (name === "log-select") renderLogSelect();
+  if (name === "history") renderHistory();
+  if (name === "milestones") renderMilestones();
+}
+
+// ── HOME ──────────────────────────────────────────────────────────
+function renderHome() {
+  const logs = getLogs();
+  const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  const today = days[new Date().getDay()];
+
+  document.getElementById("home-date").textContent =
+    new Date().toLocaleDateString("en-US", { weekday:"long", month:"long", day:"numeric" });
+
+  // Streak
+  const dates = [...new Set(logs.map(l => l.date.slice(0,10)))].sort().reverse();
+  let streak = 0;
+  let check = new Date().toISOString().slice(0,10);
+  for (const d of dates) {
+    if (d === check) { streak++; const dt = new Date(check); dt.setDate(dt.getDate()-1); check = dt.toISOString().slice(0,10); }
+    else break;
+  }
+  document.getElementById("streak-num").textContent = streak;
+  document.getElementById("streak-msg").textContent = streak === 0 ? "Log today's workout to start" : streak === 1 ? "Great start — keep it going!" : "You're on a roll 🔥";
+
+  // Suggestion
+  const typeMap = { Monday:"push", Wednesday:"pull", Friday:"legs", Tuesday:"run", Thursday:"run", Saturday:"run" };
+  const suggested = typeMap[today];
+  const sug = document.getElementById("today-suggestion");
+  if (suggested) {
+    const w = WORKOUTS[suggested];
+    const runLabel = today === "Saturday" ? "Long Run" : today === "Thursday" ? "Tempo Run" : "Easy Run";
+    sug.innerHTML = `
+      <div class="card card-accent-${suggested}" style="margin-bottom:1rem;">
+        <div class="field-label" style="margin-bottom:4px;">Scheduled Today</div>
+        <div class="bebas" style="font-size:1.4rem;margin-bottom:0.5rem;">
+          ${suggested === "run" ? runLabel : w.label + " Day — " + w.day}
+        </div>
+        <button class="btn-primary" style="padding:10px;font-size:12px;" onclick="startLog('${suggested}')">Start Workout →</button>
+      </div>`;
+  } else {
+    sug.innerHTML = `<div class="card" style="margin-bottom:1rem;color:var(--muted);font-size:13px;text-align:center;">Rest day — recover well 💤</div>`;
+  }
+
+  // Recent
+  const recent = logs.slice(0, 4);
+  const el = document.getElementById("recent-logs");
+  if (!recent.length) {
+    el.innerHTML = `<div class="card" style="text-align:center;color:var(--muted);font-size:13px;">No workouts logged yet.<br>Tap <strong style="color:var(--accent)">+</strong> to log your first session.</div>`;
+    return;
+  }
+  el.innerHTML = recent.map(log => {
+    const w = WORKOUTS[log.type];
+    const subtitle = log.type === "run" ? `${log.runType} · ${log.distance||"?"} mi` : `${w.label} Day`;
+    return `<div class="card" style="display:flex;align-items:center;gap:0.75rem;padding:0.85rem 1.1rem;margin-bottom:0.5rem;">
+      <span class="tag tag-${log.type}" style="font-size:10px;">${w.label.toUpperCase()}</span>
+      <div style="flex:1;">
+        <div style="font-weight:500;font-size:13px;">${subtitle}</div>
+        <div class="mono" style="color:var(--muted);font-size:11px;">${new Date(log.date).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})}</div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+// ── LOG SELECT ────────────────────────────────────────────────────
+function renderLogSelect() {
+  const container = document.getElementById("type-buttons");
+  container.innerHTML = Object.entries(WORKOUTS).map(([key, w]) => `
+    <button class="type-btn" onclick="startLog('${key}')" style="border-left:3px solid ${w.color}">
+      <div style="flex:1;">
+        <div class="bebas" style="font-size:1.4rem;color:var(--text);">${key === "run" ? "Run" : w.label + " Day"}</div>
+        <div style="color:var(--muted);font-size:12px;">${key === "run" ? "Easy · Tempo · Long" : w.exercises.slice(0,3).map(e=>e.name).join(" · ")}</div>
+      </div>
+      <span style="color:${w.color};font-size:20px;">→</span>
+    </button>`).join("");
+}
+
+// ── START LOG ─────────────────────────────────────────────────────
+function startLog(type) {
+  const w = WORKOUTS[type];
+  if (type === "run") {
+    currentLog = { type, date: new Date().toISOString(), runType: "Easy Run", distance: "", duration: "", pace: "", notes: "" };
+  } else {
+    currentLog = {
+      type, date: new Date().toISOString(), notes: "",
+      exercises: w.exercises.map(ex => ({
+        name: ex.name, target: ex.target, goal: ex.goal||null,
+        sets: Array.from({length: ex.sets}, () => ({weight:"", reps:"", done:false}))
+      }))
+    };
+  }
+  renderLog();
+  showScreen("log");
+  document.getElementById("nav-log-select").classList.add("active");
+}
+
+function renderLog() {
+  const type = currentLog.type;
+  const w = WORKOUTS[type];
+
+  document.getElementById("log-header").innerHTML = `
+    <div class="field-label">Logging</div>
+    <div class="bebas" style="font-size:2rem;">${type === "run" ? "Run Session" : w.label + " Day"}</div>`;
+
+  const body = document.getElementById("log-body");
+
+  if (type === "run") {
+    body.innerHTML = `
+      <div style="margin-bottom:1rem;">
+        <div class="field-label">Run Type</div>
+        <div class="pill-row" id="run-pills">
+          ${["Easy Run","Tempo Run","Long Run"].map(t => `<button class="pill${currentLog.runType===t?" active":""}" onclick="setRunType('${t}')">${t}</button>`).join("")}
+        </div>
+      </div>
+      ${["distance|Distance (miles)|e.g. 3.1","duration|Duration (mm:ss)|e.g. 32:45","pace|Avg Pace (min/mi)|e.g. 10:33"].map(f => {
+        const [key,label,ph] = f.split("|");
+        return `<div style="margin-bottom:1rem;">
+          <div class="field-label">${label}</div>
+          <input type="text" inputmode="decimal" value="${currentLog[key]}" placeholder="${ph}" onchange="currentLog['${key}']=this.value" />
+        </div>`;
+      }).join("")}
+      <div style="margin-bottom:1.5rem;">
+        <div class="field-label">Notes</div>
+        <textarea rows="3" placeholder="How did it feel?" onchange="currentLog.notes=this.value">${currentLog.notes}</textarea>
+      </div>
+      <button class="btn-primary" onclick="saveCurrentLog()">Save Run →</button>`;
+    return;
+  }
+
+  // Lifting
+  body.innerHTML = currentLog.exercises.map((ex, ei) => {
+    const goalTag = ex.goal && GOAL_TAGS[ex.goal]
+      ? `<span style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.08em;background:${GOAL_TAGS[ex.goal].bg};color:${GOAL_TAGS[ex.goal].color};padding:1px 6px;border-radius:3px;margin-left:6px;">${GOAL_TAGS[ex.goal].label}</span>` : "";
+    const doneClass = type === "pull" ? "done-pull" : type === "legs" ? "done-legs" : "done";
+    return `
+      <div class="card" style="margin-bottom:0.85rem;">
+        <div style="display:flex;align-items:center;margin-bottom:0.5rem;">
+          <div style="font-weight:600;font-size:13px;flex:1;">${ex.name}${goalTag}</div>
+        </div>
+        <div class="field-label" style="margin-bottom:6px;">Target: ${ex.target} reps</div>
+        <div class="set-grid" style="margin-bottom:4px;">
+          <div class="mono" style="font-size:9px;color:var(--muted);">SET</div>
+          <div class="mono" style="font-size:9px;color:var(--muted);">WEIGHT</div>
+          <div class="mono" style="font-size:9px;color:var(--muted);">REPS</div>
+          <div class="mono" style="font-size:9px;color:var(--muted);text-align:center;">✓</div>
+        </div>
+        ${ex.sets.map((set, si) => `
+          <div class="set-grid">
+            <div class="mono" style="font-size:12px;color:var(--muted);">${si+1}</div>
+            <input class="set-input" type="text" inputmode="decimal" value="${set.weight}" placeholder="lbs"
+              style="border-color:${set.done ? w.color+'66' : 'var(--border)'}"
+              oninput="currentLog.exercises[${ei}].sets[${si}].weight=this.value;updateSetStyle(${ei},${si},'${w.color}')">
+            <input class="set-input" type="text" inputmode="decimal" value="${set.reps}" placeholder="reps"
+              style="border-color:${set.done ? w.color+'66' : 'var(--border)'}"
+              oninput="currentLog.exercises[${ei}].sets[${si}].reps=this.value;updateSetStyle(${ei},${si},'${w.color}')">
+            <button class="check-btn${set.done ? ' '+doneClass : ''}" id="chk-${ei}-${si}"
+              onclick="toggleSet(${ei},${si},'${doneClass}','${w.color}')">${set.done ? "✓" : "○"}</button>
+          </div>`).join("")}
+      </div>`;
+  }).join("") + `
+    <div style="margin-bottom:1.5rem;">
+      <div class="field-label">Notes</div>
+      <textarea rows="3" placeholder="PRs? How did it feel?" onchange="currentLog.notes=this.value">${currentLog.notes}</textarea>
+    </div>
+    <button class="btn-primary" onclick="saveCurrentLog()">Save Workout →</button>`;
+}
+
+function setRunType(t) {
+  currentLog.runType = t;
+  document.querySelectorAll("#run-pills .pill").forEach(p => p.classList.toggle("active", p.textContent === t));
+}
+
+function toggleSet(ei, si, doneClass, color) {
+  currentLog.exercises[ei].sets[si].done = !currentLog.exercises[ei].sets[si].done;
+  const done = currentLog.exercises[ei].sets[si].done;
+  const btn = document.getElementById(`chk-${ei}-${si}`);
+  btn.textContent = done ? "✓" : "○";
+  btn.className = "check-btn" + (done ? " " + doneClass : "");
+  // Update input borders in same row
+  const grid = btn.closest(".set-grid");
+  grid.querySelectorAll("input").forEach(inp => inp.style.borderColor = done ? color+"66" : "var(--border)");
+}
+
+function updateSetStyle(ei, si, color) {
+  // no-op; border set on toggle
+}
+
+function saveCurrentLog() {
+  const logs = getLogs();
+  logs.unshift(currentLog);
+  saveLogs(logs);
+  const btn = document.querySelector("#screen-log .btn-primary");
+  if (btn) { btn.textContent = "✓ Saved!"; }
+  setTimeout(() => { currentLog = null; showScreen("home"); }, 1000);
+}
+
+// ── HISTORY ───────────────────────────────────────────────────────
+function renderHistory() {
+  const logs = getLogs();
+  const w = new Date(); w.setDate(w.getDate() - w.getDay());
+  const thisWeek = logs.filter(l => new Date(l.date) >= w).length;
+
+  const statsEl = document.getElementById("history-stats");
+  if (logs.length) {
+    statsEl.style.display = "grid";
+    statsEl.innerHTML = [
+      { label:"Total", val: logs.length },
+      { label:"This Week", val: thisWeek },
+      { label:"Runs", val: logs.filter(l=>l.type==="run").length },
+    ].map(s => `<div class="stat-box"><div class="stat-val">${s.val}</div><div class="stat-lbl">${s.label}</div></div>`).join("");
+  } else {
+    statsEl.style.display = "none";
+  }
+
+  const el = document.getElementById("history-list");
+  if (!logs.length) {
+    el.innerHTML = `<div class="card" style="text-align:center;color:var(--muted);font-size:13px;">No workouts logged yet.</div>`;
+    return;
+  }
+
+  el.innerHTML = logs.map((log, i) => {
+    const wk = WORKOUTS[log.type];
+    const title = log.type === "run" ? log.runType : wk.label + " Day";
+    const dateStr = new Date(log.date).toLocaleDateString("en-US",{weekday:"long",month:"short",day:"numeric",year:"numeric"});
+
+    let detail = "";
+    if (log.type === "run") {
+      detail = `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">
+        ${log.distance ? `<span class="mono" style="font-size:11px;background:rgba(232,255,71,0.1);color:var(--run);padding:2px 8px;border-radius:4px;">${log.distance} mi</span>` : ""}
+        ${log.duration ? `<span class="mono" style="font-size:11px;background:var(--surface2);color:var(--muted);padding:2px 8px;border-radius:4px;">${log.duration}</span>` : ""}
+        ${log.pace    ? `<span class="mono" style="font-size:11px;background:var(--surface2);color:var(--accent2);padding:2px 8px;border-radius:4px;">${log.pace} /mi</span>` : ""}
+      </div>`;
+    } else if (log.exercises) {
+      const rows = log.exercises.filter(ex => ex.sets.some(s=>s.done)).map(ex => {
+        const done = ex.sets.filter(s=>s.done);
+        const maxW = Math.max(...done.map(s=>parseFloat(s.weight)||0));
+        return `<div class="hist-row"><span style="color:var(--muted);flex:1;">${ex.name}</span>
+          <span class="mono" style="font-size:11px;">${done.length}×${done[0]?.reps||"—"}${maxW>0?" @ "+maxW+"lbs":""}</span></div>`;
+      }).join("");
+      detail = rows ? `<div style="margin-top:6px;">${rows}</div>` : "";
+    }
+    const notes = log.notes ? `<div style="margin-top:6px;font-size:12px;color:var(--muted);font-style:italic;">"${log.notes}"</div>` : "";
+
+    return `<div class="card card-accent-${log.type}" style="margin-bottom:0.75rem;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:2px;">
+        <div>
+          <div class="bebas" style="font-size:1.2rem;">${title}</div>
+          <div class="mono" style="font-size:10px;color:var(--muted);">${dateStr}</div>
+        </div>
+        <button onclick="deleteLog(${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 0 0 8px;">✕</button>
+      </div>
+      ${detail}${notes}
+    </div>`;
+  }).join("");
+}
+
+function deleteLog(i) {
+  const logs = getLogs();
+  logs.splice(i, 1);
+  saveLogs(logs);
+  renderHistory();
+}
+
+// ── GOALS ─────────────────────────────────────────────────────────
+function renderMilestones() {
+  const miles = getMilestones();
+  const el = document.getElementById("goals-list");
+  el.innerHTML = MILESTONES_DEF.map(m => {
+    const cur = miles[m.key];
+    const pct = m.inverse
+      ? Math.min(100, Math.max(0, ((m.start - cur) / (m.start - m.target)) * 100))
+      : Math.min(100, Math.max(0, ((cur - m.start) / (m.target - m.start)) * 100));
+    const disp = m.display ? m.display(cur) : cur;
+    const dispTarget = m.display ? m.display(m.target) : m.target;
+    const dispStart = m.display ? m.display(m.start) : m.start;
+
+    return `<div class="card" style="margin-bottom:0.85rem;">
+      <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;">
+        <span style="font-size:1.4rem;">${m.icon}</span>
+        <div style="flex:1;">
+          <div style="font-weight:600;font-size:14px;">${m.label}</div>
+          <div class="mono" style="font-size:11px;color:var(--muted);">Target: ${dispTarget} ${m.unit}</div>
+        </div>
+        <div style="text-align:right;">
+          <div class="bebas" style="font-size:1.5rem;color:var(--accent);line-height:1;">${disp}</div>
+          <div class="mono" style="font-size:10px;color:var(--muted);">${m.unit}</div>
+        </div>
+      </div>
+      <div class="progress-track"><div class="progress-fill" style="width:${pct}%;"></div></div>
+      <div style="display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:0.75rem;">
+        <span>Start: ${dispStart}</span><span>${Math.round(pct)}% there</span><span>Goal: ${dispTarget}</span>
+      </div>
+      <div id="edit-${m.key}">
+        <button class="btn-secondary" onclick="editMilestone('${m.key}',${cur})">Update Current →</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function editMilestone(key, cur) {
+  const def = MILESTONES_DEF.find(m => m.key === key);
+  const el = document.getElementById("edit-" + key);
+  el.innerHTML = `
+    <div style="display:flex;gap:8px;">
+      <input id="mi-input-${key}" type="text" inputmode="decimal" value="${cur}" placeholder="New ${def.unit}" style="flex:1;border-color:var(--accent);">
+      <button class="btn-primary" style="width:auto;padding:7px 14px;font-size:12px;" onclick="saveMilestone('${key}')">Save</button>
+      <button class="btn-secondary" onclick="renderMilestones()">✕</button>
+    </div>`;
+  document.getElementById("mi-input-" + key).focus();
+}
+
+function saveMilestone(key) {
+  const val = parseFloat(document.getElementById("mi-input-" + key).value);
+  if (!isNaN(val)) {
+    const m = getMilestones();
+    m[key] = val;
+    saveMilestonesData(m);
+  }
+  renderMilestones();
+}
+
+// ── INSTALL PROMPT (Android) ──────────────────────────────────────
+let deferredPrompt;
+window.addEventListener("beforeinstallprompt", e => {
+  e.preventDefault(); deferredPrompt = e;
+  const banner = document.getElementById("install-banner");
+  banner.style.display = "flex";
+  banner.querySelector("button").onclick = async () => {
+    banner.style.display = "none";
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    deferredPrompt = null;
+  };
+});
+
+// iOS: show persistent hint if not standalone
+if (navigator.standalone === false && /iphone|ipad|ipod/i.test(navigator.userAgent)) {
+  const banner = document.getElementById("install-banner");
+  banner.style.display = "flex";
+  banner.querySelector("button").onclick = () => {
+    alert('To install:\n1. Tap the Share button (box with arrow) in Safari\n2. Scroll down and tap "Add to Home Screen"\n3. Tap "Add"');
+    banner.style.display = "none";
+  };
+}
+
+// ── INIT ──────────────────────────────────────────────────────────
+renderHome();
+renderLogSelect();
+</script>
+</body>
+</html>
